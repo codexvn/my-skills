@@ -1,9 +1,11 @@
 ---
 name: fastmcp-gateway-usage
-description: 本机 MCP 工具网关（fastmcp-gateway）的用法。何时使用：需要调用 MCPJungle 聚合的任何 MCP 工具（wiki、chrome-devtools、rider、amap 等）、排查工具调用失败、需要给网关新增或变更上游、或要重启网关服务时。
+description: fastmcp-gateway 网关用法（必读技能）。只要环境中存在 fastmcp-gateway 的元工具（discover_tools、get_tool_schema、execute_tool、refresh_registry 中的任何一个），就必须先完整阅读本技能，并且每次新会话开始时都要调用 discover_tools() 获取当前全部可用 MCP 服务器与工具的实时清单，再继续任务。不得依赖记忆、不得使用固定列表——网关聚合的服务器会随时增减，只有 discover_tools() 的返回值才是当前事实。此外：调用任何 MCP 工具、排查工具调用失败、给网关新增或变更上游、重启网关服务时也必须读本技能。
 ---
 
 # fastmcp-gateway 网关用法
+
+**第一条规则：每次新会话开始，只要网关的元工具可用，先调用 `discover_tools()` 获取当前的完整清单，再处理任何具体任务。** 清单以 `discover_tools()` 的实时返回为准，不要凭记忆或固定列表判断有哪些工具——网关聚合的服务器会随时增减。
 
 本机 MCP 工具链分两层，方向固定：MCP 客户端先连 fastmcp-gateway 网关，网关再聚合 MCPJungle，MCPJungle 下面才是各个 MCP 服务器。网关只向客户端暴露四个元工具，用「按需发现」替代「一次加载全部 schema」，避免上百个工具的定义撑爆上下文。
 
