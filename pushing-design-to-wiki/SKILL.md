@@ -1,11 +1,11 @@
 ---
 name: pushing-design-to-wiki
-description: 把 markdown 文档同步、推送到 Confluence wiki 的固定管线（markdown 宏 + mermaiddiagram 宏，storage 格式直推）。何时使用：用户要求把 markdown 文档「同步到 wiki」「推送 wiki」「更新 wiki 页面」，或 wiki 页面图表渲染报错、格式错乱需要重排时。
+description: 把 markdown 文档同步、推送到 Confluence wiki 的固定管线（markdown 宏 + mermaiddiagram 宏 + html 宏，storage 格式直推）。何时使用：用户要求把 markdown 文档「同步到 wiki」「推送 wiki」「更新 wiki 页面」，或 wiki 页面图表渲染报错、格式错乱需要重排时。
 ---
 
 # 推送 markdown 文档到 Confluence wiki
 
-直接把 markdown 交给 wiki 服务的格式转换器不可靠：mermaid 代码块会被转成渲染不受控的占位对象，嵌套列表也会被压平。本技能用 storage 格式直推解决：正文包 `markdown` 宏，mermaid 包 `mermaiddiagram` 宏，由页面端渲染。
+直接把 markdown 交给 wiki 服务的格式转换器不可靠：mermaid 代码块会被转成渲染不受控的占位对象，嵌套列表也会被压平。本技能用 storage 格式直推解决：正文包 `markdown` 宏，mermaid 包 `mermaiddiagram` 宏，` ```html ` 代码块包 `html` 宏（页面端按原样渲染 HTML 片段，用于 markdown 表格承载不了的宽表、带内联样式的表格等），由页面端渲染。
 
 ## 使用步骤
 
@@ -30,17 +30,23 @@ def mdia_macro(code):
             '<ac:parameter ac:name=""></ac:parameter>'
             '<ac:plain-text-body><![CDATA[%s]]></ac:plain-text-body></ac:structured-macro>') % (uuid.uuid4(), code)
 
+def html_macro(code):
+    return ('<ac:structured-macro ac:macro-id="%s" ac:name="html" ac:schema-version="1">'
+            '<ac:plain-text-body><![CDATA[%s]]></ac:plain-text-body></ac:structured-macro>') % (uuid.uuid4(), code)
+
 toc = ('<ac:structured-macro ac:macro-id="%s" ac:name="toc">'
        '<ac:parameter ac:name="printable">true</ac:parameter>'
        '<ac:parameter ac:name="style">disc</ac:parameter>'
        '<ac:parameter ac:name="maxLevel">4</ac:parameter>'
        '</ac:structured-macro>') % uuid.uuid4()
 
-parts = re.split(r'(```mermaid\n.*?\n```)', t, flags=re.S)
+parts = re.split(r'(```(?:mermaid|html)\n.*?\n```)', t, flags=re.S)
 out = []
 for p in parts:
     if p.startswith('```mermaid\n'):
         out.append(mdia_macro(p[len('```mermaid\n'):-len('\n```')]))
+    elif p.startswith('```html\n'):
+        out.append(html_macro(p[len('```html\n'):-len('\n```')]))
     elif p:
         out.append(md_macro(p))
 
@@ -53,6 +59,6 @@ io.open(DST, 'w', encoding='utf-8', newline='\n').write(toc + ''.join(out))
 
 ## 硬性约束
 
-- 图必须用 `mermaiddiagram` 宏（含空名参数 `<ac:parameter ac:name=""></ac:parameter>`），文本用 `markdown` 宏，CDATA 一律真实换行；禁止字面 `\n` 转义（会导致整页格式错乱），禁止改回旧 `mermaid-macro` 宏名（该宏对语法挑剔）。
+- 图必须用 `mermaiddiagram` 宏（含空名参数 `<ac:parameter ac:name=""></ac:parameter>`），文本用 `markdown` 宏，` ```html ` 代码块用 `html` 宏（内容为 HTML 片段本体，不写 `<html>` / `<body>` 包裹），CDATA 一律真实换行；禁止字面 `\n` 转义（会导致整页格式错乱），禁止改回旧 `mermaid-macro` 宏名（该宏对语法挑剔）。
 - payload 写在 `D:\Tools\MCPJungle\tmp\`（本机部署事实：wiki MCP 服务对可读路径做白名单校验，只认该根目录；换机部署时以实际沙箱根目录下的 tmp 子目录为准）。
 - 推送前比对远端版本号，异常增长先拉历史核查，防止覆盖他人在 wiki 上的编辑。
